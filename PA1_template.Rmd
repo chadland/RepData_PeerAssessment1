@@ -1,25 +1,161 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "ReproducibleResearchProject1"
+author: "ChrisH"
+date: "Sunday, January 18, 2015"
+output: html_document
 ---
 
+### Introduction
+It is now possible to collect a large amount of data about personal movement using activity monitoring devices such as a Fitbit, Nike Fuelband, or Jawbone Up. These type of devices are part of the "quantified self" movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. But these data remain under-utilized both because the raw data are hard to obtain and there is a lack of statistical methods and software for processing and interpreting the data.
 
-## Loading and preprocessing the data
-
-
-
-## What is mean total number of steps taken per day?
+This report makes use of data from a personal activity monitoring device. This device collects data at 5 minute intervals through out the day. The data consists of two months of data from an anonymous individual collected during the months of October and November, 2012 and include the number of steps taken in 5 minute intervals each day.
 
 
+### Download and unzip file used for the analysis.
 
-## What is the average daily activity pattern?
+```{r}
+
+#clean repositories
+rm(list=ls())
+
+# install libraries
+if (library("RCurl", logical.return = TRUE) == FALSE) {
+    install.packages("RCurl")
+}
+if (library("lubridate", logical.return = TRUE) == FALSE) {
+    install.packages("lubridate")
+}
+if (library("plyr", logical.return = TRUE) == FALSE) {
+    install.packages("plyr")
+}
+if (library("lattice", logical.return = TRUE) == FALSE) {
+    install.packages("lattice")
+}
+
+# assign libraries
+library(RCurl)
+library(lubridate)
+library(plyr)
+library(lattice)
+
+# check if a data folder exists; if not then create one
+if (!file.exists("data")) {dir.create("data")}
+
+# file URL and destination file
+fileUrl <- "http://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip"
+destfile <- "./data/activity.zip"
+
+# download the file and store the time the file was downlaod
+download.file(fileUrl, destfile = destfile, mode = "wb")
+dateDownloaded <- date()
+
+# unzip the filee
+activity <- read.csv(unz("./data/activity.zip", "activity.csv"))
+
+# display top 6 rows of the file just to see that it came through 
+head(activity)
+
+```
+
+### 1 - What is mean total number of steps taken per day?
+
+```{r}
+# calculate total number of steps pr. day using ddply and removing days with no observations
+total.steps.pr.day <- na.omit(ddply(activity,~date,summarise,sum=sum(steps, na.rm = FALSE)))
+
+#plot histogram
+hist(total.steps.pr.day$sum , breaks = 10, 
+          xlab = "Total number of steps per day", 
+          main = "Distribution of total steps per day", 
+          col = "lightblue")
+
+# report mean
+mean(total.steps.pr.day$sum, na.rm = TRUE)
+
+# report median
+median(total.steps.pr.day$sum, na.rm = TRUE)
+
+```
+
+### 2 - What is the average daily activity pattern?
+
+```{r}
+
+# calculate average number of steps pr. interval removing missing values
+average.steps.pr.interval <- ddply(activity,.(interval),summarise,mean.steps=mean(steps, na.rm = TRUE))
+
+# plot results
+plot(average.steps.pr.interval$interval, average.steps.pr.interval$mean.steps, type = "l",
+     xlab="Interval", ylab="Average number of steps taken")
+
+# report max 5. minute interval
+average.steps.pr.interval[average.steps.pr.interval$mean==max(average.steps.pr.interval$mean),1]
+
+```
 
 
+### 3 - Imputing missing values
 
-## Imputing missing values
+```{r}
+# report number of missing values
+sum(is.na(activity))
+
+#Devise a strategy for filling in all of the missing values in the dataset. 
+#The strategy does not need to be #sophisticated. For example, you could use the mean/median for 
+#that day, or the mean for that 5-minute interval, etc.
+
+# find missing steps
+missing.steps <- activity[is.na(activity$steps)==TRUE,]
+
+# replace missing values by average pr. interval
+
+# join activity and average steps pr. intervals together 
+merged.dataset <- merge(activity, average.steps.pr.interval, by="interval", all.x=TRUE, suffixes=c(".Activity", ".Average"))
+
+# replace missing values by average step pr. interval 
+merged.dataset$steps <- ifelse(is.na(merged.dataset$steps), merged.dataset$mean.steps, merged.dataset$steps)
+
+#keep only modified table 
+activity.nomissing <- merged.dataset[,seq(1:3)]
+
+#calculate number of steps each day with modified dataset
+total.steps.pr.day.modified <- ddply(activity.nomissing,~date,summarise,sum=sum(steps, na.rm = FALSE))
+
+#plot histogram
+hist(total.steps.pr.day.modified$sum , breaks = 10, 
+          xlab = "Total number of steps per day", 
+          main = "Distribution of total steps per day (imputed values)", 
+          col = "lightblue")
+
+# report mean
+mean(total.steps.pr.day.modified$sum, na.rm = TRUE)
+
+# report median
+median(total.steps.pr.day.modified$sum, na.rm = TRUE)
+
+```
+
+When replacing the NAs with the average of the respective interval the median and mean have the same value, indicating a more even distribution. 
 
 
+### 4 - Are there differences in activity patterns between weekdays and weekends?
 
-## Are there differences in activity patterns between weekdays and weekends?
+
+```{r}
+
+# create factor weekend wekday
+activity.nomissing$dayType <- as.factor(ifelse(wday(as.Date(activity.nomissing$date)) %in% c(1,7),"weekend","weekday"))
+
+# average the steps pr.interval and pr. daytype
+average.steps.pr.interval.pr.dayType <- ddply(activity.nomissing,.(interval,dayType),summarise,mean.steps=mean(steps, na.rm = TRUE))
+
+# create a xyplot
+xyplot(average.steps.pr.interval.pr.dayType$mean.steps ~ average.steps.pr.interval.pr.dayType$interval | average.steps.pr.interval.pr.dayType$dayType, layout = c(2, 1), type = "l", 
+       xlab = "Time interval", ylab = "Number of steps", main = "Time series of number of steps vs time interval" )
+
+```
+
+Average steps taken on the weekend are much more distributed over the whole day, while during the weekdays the average spikes at interval 835
+library(knitr)
+library(markdown)
+knit2html( )
