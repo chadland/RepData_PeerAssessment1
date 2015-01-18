@@ -155,7 +155,3 @@ xyplot(average.steps.pr.interval.pr.dayType$mean.steps ~ average.steps.pr.interv
 
 ```
 
-Average steps taken on the weekend are much more distributed over the whole day, while during the weekdays the average spikes at interval 835
-library(knitr)
-library(markdown)
-knit2html( )
